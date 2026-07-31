@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import math
 from collections import defaultdict
 
 from sqlalchemy.orm import Session
@@ -16,36 +17,32 @@ BASELINE_RATING = 6.0
 MIN_RATING = 0.0
 MAX_RATING = 10.0
 
-# High-frequency, low-discrimination event types: capped per player per match so
-# repetition alone can't outweigh rarer, more decisive contributions (goals, key
-# dribbles, saves). Tune these caps as more matches reveal other volume-driven types.
-VOLUME_EVENT_CAPS = {
-    "Pass": 0.5,
-    "Ball Recovery": 0.4,
-    "Clearance": 0.4,
-}
+
+def diminishing_returns(x: float) -> float:
+    """Signed square root: the first unit of contribution from an event type
+    counts close to full value, each additional unit counts for progressively
+    less. Applied per event type before summing, so no single category -
+    known or yet to be discovered - can dominate a rating through repetition
+    alone. Replaces the earlier flat per-category caps (Pass/Ball Recovery/
+    Clearance), which stopped one category running away but didn't stop a
+    player stacking several capped categories at once."""
+    return math.copysign(math.sqrt(abs(x)), x)
 
 
 def compute_ratings_for_match(session: Session, match: Match, model) -> list[PlayerMatchRating]:
     event_results = compute_event_weights_for_match(session, match, model)
 
-    per_player_weight: dict[int, float] = defaultdict(float)
     per_player_breakdown: dict[int, dict[str, float]] = defaultdict(lambda: defaultdict(float))
 
     for event, weight, _info in event_results:
         if event.player_id is None:
             continue
-        per_player_weight[event.player_id] += weight
         per_player_breakdown[event.player_id][event.event_type] += weight
 
     ratings = []
     for player_id, breakdown in per_player_breakdown.items():
-        capped_breakdown = dict(breakdown)
-        for event_type, cap in VOLUME_EVENT_CAPS.items():
-            if event_type in capped_breakdown:
-                capped_breakdown[event_type] = max(-cap, min(cap, capped_breakdown[event_type]))
-
-        total_weight = sum(capped_breakdown.values())
+        transformed_breakdown = {k: round(diminishing_returns(v), 3) for k, v in breakdown.items()}
+        total_weight = sum(transformed_breakdown.values())
         rating_value = max(MIN_RATING, min(MAX_RATING, BASELINE_RATING + total_weight))
 
         rating = PlayerMatchRating(
@@ -53,7 +50,7 @@ def compute_ratings_for_match(session: Session, match: Match, model) -> list[Pla
             player_id=player_id,
             position=None,  # position weighting deliberately deferred, see event_weights.py
             rating=round(rating_value, 2),
-            breakdown={k: round(v, 3) for k, v in capped_breakdown.items()},
+            breakdown=transformed_breakdown,
         )
         ratings.append(rating)
 
