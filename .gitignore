@@ -10,3 +10,5 @@ dist/
 alembic/versions/*.pyc
 *.ipynb_checkpoints
 data/raw/
+*.log
+data/raw/

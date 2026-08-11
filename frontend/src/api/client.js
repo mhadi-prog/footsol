@@ -13,7 +13,17 @@ export const api = {
   getPlayerSummary: (playerId) => request(`/players/${playerId}/summary`),
   getPlayerMatches: (playerId) => request(`/players/${playerId}/matches`),
   listMatches: (limit = 50, offset = 0) => request(`/matches?limit=${limit}&offset=${offset}`),
-  getMatchRatings: (statsbombMatchId) => request(`/matches/${statsbombMatchId}/ratings`),getTopPerformances: (limit = 8) => request(`/players/meta/top-performances?limit=${limit}`),
-  getDatasetStats: () => request(`/players/meta/stats`),
+  getMatchRatings: (statsbombMatchId) => request(`/matches/${statsbombMatchId}/ratings`),
+  getCompetitions: () => request(`/matches/competitions`),
+  getTopPerformances: (limit = 8, competition = null) => {
+    const params = new URLSearchParams({ limit });
+    if (competition) params.set('competition', competition);
+    return request(`/players/meta/top-performances?${params}`);
+  },
+  getDatasetStats: (competition = null) => {
+    const params = new URLSearchParams();
+    if (competition) params.set('competition', competition);
+    return request(`/players/meta/stats?${params}`);
+  },
 
 };

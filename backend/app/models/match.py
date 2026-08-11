@@ -20,3 +20,4 @@ class Match(Base):
     away_team: Mapped[str] = mapped_column(String(120))
     home_score: Mapped[int] = mapped_column(Integer)
     away_score: Mapped[int] = mapped_column(Integer)
+    stage: Mapped[str | None] = mapped_column(String(80), nullable=True)

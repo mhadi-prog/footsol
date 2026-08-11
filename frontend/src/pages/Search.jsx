@@ -9,19 +9,25 @@ export default function Search() {
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
+  const [competitions, setCompetitions] = useState([]);
+  const [selectedCompetition, setSelectedCompetition] = useState('');
   const [stats, setStats] = useState(null);
   const [topPerformances, setTopPerformances] = useState([]);
   const [dashError, setDashError] = useState(null);
+useEffect(() => {
+    api.getCompetitions().then(setCompetitions).catch(() => {});
+  }, []);
 
   useEffect(() => {
-    Promise.all([api.getDatasetStats(), api.getTopPerformances(8)])
+    const competitionFilter = selectedCompetition || null;
+    Promise.all([api.getDatasetStats(competitionFilter), api.getTopPerformances(8, competitionFilter)])
       .then(([s, t]) => {
         setStats(s);
         setTopPerformances(t);
+        setDashError(null);
       })
       .catch(() => setDashError('Could not load dashboard data. Is the API running?'));
-  }, []);
+  }, [selectedCompetition]);
 
   async function handleSearch(e) {
     e.preventDefault();
@@ -151,10 +157,32 @@ export default function Search() {
       )}
 
       {/* Top performances */}
-      <div style={{ maxWidth: 960, margin: '0 auto', padding: '48px 24px' }}>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 800, marginBottom: 20 }}>
-          Standout performances
-        </h2>
+     <div style={{ maxWidth: 960, margin: '0 auto', padding: '48px 24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 800, margin: 0 }}>
+            Standout performances
+          </h2>
+          <select
+            value={selectedCompetition}
+            onChange={(e) => setSelectedCompetition(e.target.value)}
+            style={{
+              padding: '8px 12px',
+              background: 'var(--surface)',
+              border: '1px solid var(--line)',
+              borderRadius: 6,
+              color: 'var(--text)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 13,
+            }}
+          >
+            <option value="">All competitions</option>
+            {competitions.map((c) => (
+              <option key={`${c.competition}-${c.season}`} value={c.competition}>
+                {c.competition} ({c.match_count})
+              </option>
+            ))}
+          </select>
+        </div>
 
         {dashError && <p style={{ color: 'var(--negative)' }}>{dashError}</p>}
 

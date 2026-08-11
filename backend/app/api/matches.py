@@ -2,10 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.schemas.match import MatchOut, MatchRatingsOut
+from app.schemas.match import CompetitionOut, MatchOut, MatchRatingsOut
 from app.services import ratings_query
 
 router = APIRouter(prefix="/matches", tags=["matches"])
+
+
+@router.get("/competitions", response_model=list[CompetitionOut])
+def list_competitions(db: Session = Depends(get_db)):
+    return ratings_query.get_competitions(db)
 
 
 @router.get("", response_model=list[MatchOut])

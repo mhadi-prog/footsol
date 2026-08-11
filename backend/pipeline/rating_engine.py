@@ -18,16 +18,21 @@ MIN_RATING = 0.0
 MAX_RATING = 10.0
 
 
-def diminishing_returns(x: float) -> float:
-    """Signed square root: the first unit of contribution from an event type
-    counts close to full value, each additional unit counts for progressively
-    less. Applied per event type before summing, so no single category -
-    known or yet to be discovered - can dominate a rating through repetition
-    alone. Replaces the earlier flat per-category caps (Pass/Ball Recovery/
-    Clearance), which stopped one category running away but didn't stop a
-    player stacking several capped categories at once."""
-    return math.copysign(math.sqrt(abs(x)), x)
-
+# High-frequency, low-discrimination event types: capped per player per match so
+# repetition alone can't outweigh rarer, more decisive contributions (goals, key
+# dribbles, saves). A smooth diminishing-returns curve (sqrt, then asinh) was tried
+# here and both failed - at our actual value scale (0.3-0.8 per category) neither
+# curve meaningfully compresses anything, and neither addresses the real failure
+# mode anyway, which is a player stacking several *separately* strong categories
+# rather than one category running away. A hard cap is blunter but directly
+# targets that.
+VOLUME_EVENT_CAPS = {
+    "Pass": 0.5,
+    "Ball Recovery": 0.4,
+    "Clearance": 0.4,
+    "Block": 0.4,
+    "Interception": 0.4,
+}
 
 def compute_ratings_for_match(session: Session, match: Match, model) -> list[PlayerMatchRating]:
     event_results = compute_event_weights_for_match(session, match, model)
@@ -41,7 +46,11 @@ def compute_ratings_for_match(session: Session, match: Match, model) -> list[Pla
 
     ratings = []
     for player_id, breakdown in per_player_breakdown.items():
-        transformed_breakdown = {k: round(diminishing_returns(v), 3) for k, v in breakdown.items()}
+        transformed_breakdown = dict(breakdown)
+        for event_type, cap in VOLUME_EVENT_CAPS.items():
+            if event_type in transformed_breakdown:
+                transformed_breakdown[event_type] = max(-cap, min(cap, transformed_breakdown[event_type]))
+
         total_weight = sum(transformed_breakdown.values())
         rating_value = max(MIN_RATING, min(MAX_RATING, BASELINE_RATING + total_weight))
 

@@ -19,6 +19,21 @@ def search_players(q: str = Query(..., min_length=2), db: Session = Depends(get_
     return ratings_query.search_players(db, q)
 
 
+@router.get("/meta/top-performances", response_model=list[TopPerformance])
+def top_performances(
+    limit: int = 8,
+    competition: str | None = None,
+    season: str | None = None,
+    db: Session = Depends(get_db),
+):
+    return ratings_query.get_top_performances(db, limit, competition, season)
+
+
+@router.get("/meta/stats", response_model=DatasetStats)
+def dataset_stats(competition: str | None = None, season: str | None = None, db: Session = Depends(get_db)):
+    return ratings_query.get_dataset_stats(db, competition, season)
+
+
 @router.get("/{player_id}", response_model=PlayerOut)
 def get_player(player_id: int, db: Session = Depends(get_db)):
     player = ratings_query.get_player(db, player_id)
@@ -41,13 +56,3 @@ def get_player_summary(player_id: int, db: Session = Depends(get_db)):
     if summary is None:
         raise HTTPException(status_code=404, detail="Player not found or has no rated matches")
     return summary
-
-
-@router.get("/meta/top-performances", response_model=list[TopPerformance])
-def top_performances(limit: int = 8, db: Session = Depends(get_db)):
-    return ratings_query.get_top_performances(db, limit)
-
-
-@router.get("/meta/stats", response_model=DatasetStats)
-def dataset_stats(db: Session = Depends(get_db)):
-    return ratings_query.get_dataset_stats(db)

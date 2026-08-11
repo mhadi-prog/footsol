@@ -49,6 +49,7 @@ def get_or_create_match(session: Session, match_row: pd.Series) -> Match:
         away_team=_name(match_row.get("away_team")),
         home_score=int(match_row.get("home_score", 0)),
         away_score=int(match_row.get("away_score", 0)),
+        stage=_name(match_row.get("competition_stage")),
     )
     session.add(match)
     session.flush()

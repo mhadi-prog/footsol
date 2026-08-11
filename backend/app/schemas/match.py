@@ -27,3 +27,9 @@ class MatchPlayerRating(BaseModel):
 class MatchRatingsOut(BaseModel):
     match: MatchOut
     ratings: list[MatchPlayerRating]
+
+
+class CompetitionOut(BaseModel):
+    competition: str
+    season: str
+    match_count: int

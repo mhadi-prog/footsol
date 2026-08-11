@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import argparse
+import signal
 import time
 
 from statsbombpy import sb
 
 from app.core.db import SessionLocal
 from pipeline.ingest import ingest_match
+
+
+def _timeout_handler(signum, frame):
+    raise TimeoutError("Match fetch exceeded 30s, likely a hung connection")
 
 
 def main() -> None:
@@ -43,6 +48,8 @@ def main() -> None:
                 continue
 
             for _, match_row in matches_df.iterrows():
+                signal.signal(signal.SIGALRM, _timeout_handler)
+                signal.alarm(30)
                 try:
                     ingest_match(session, match_row, force=False)
                     total_ingested += 1
@@ -50,6 +57,8 @@ def main() -> None:
                     total_failed += 1
                     print(f"    Failed on match {match_row.get('match_id')}: {e}")
                     session.rollback()
+                finally:
+                    signal.alarm(0)
                 time.sleep(0.2)
 
     finally:

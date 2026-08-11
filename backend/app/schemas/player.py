@@ -1,3 +1,5 @@
+from datetime import date
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -22,6 +24,9 @@ class PlayerMatchHistoryEntry(BaseModel):
     statsbomb_match_id: int
     competition: str
     season: str
+    stage: str | None
+    stage_weight: float
+    match_date: date | None
     home_team: str
     away_team: str
     home_score: int
@@ -36,6 +41,7 @@ class PlayerSeasonSummary(BaseModel):
     player: PlayerOut
     matches_played: int
     average_rating: float
+    context_weighted_rating: float
     highest_rating: float
     lowest_rating: float
 
