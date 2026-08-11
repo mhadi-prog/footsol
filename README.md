@@ -40,7 +40,6 @@ defensible alternative to black-box match ratings like Sofascore/Fotmob.
 - **Infra**: Docker Compose (Postgres)
 
 ## Architecture
-
 StatsBomb Open Data
 |
 v
@@ -54,32 +53,92 @@ Event weighting (base value x leverage) -> per-match player ratings
 |
 v
 FastAPI backend (REST) -> React dashboard
-# 1. Start Postgres
+## Getting started
+
+Prerequisites: Python 3.13+, Node.js, Docker Desktop.
+
+### 1. Start Postgres
+
+```bash
 cd backend
 docker compose up -d
+```
 
-# 2. Install backend dependencies
+### 2. Install backend dependencies
+
+```bash
 pip install -r requirements.txt --break-system-packages
 cp .env.example .env
+```
 
-# 3. Run migrations
+### 3. Run migrations
+
+```bash
 alembic upgrade head
+```
 
-# 4. Ingest data (see pipeline/ commands below)
+### 4. Ingest data
+
+```bash
 python -m pipeline.bulk_ingest
+```
 
-# 5. Train the win-probability model
+Fair warning: run with no flags, this pulls StatsBomb's entire open catalog
+and can take hours. For a quick first look instead, cap it:
+
+```bash
+python -m pipeline.bulk_ingest --max-matches-per-season 20
+```
+
+### 5. Train the win-probability model
+
+```bash
 python -m pipeline.win_probability --train
+```
 
-# 6. Compute player ratings
+### 6. Compute player ratings
+
+```bash
 python -m pipeline.rating_engine
+```
 
-# 7. Start the API
+### 7. Start the API
+
+```bash
 uvicorn app.main:app --reload
 ```
 
+### 8. Start the frontend
+
+In a separate terminal:
+
 ```bash
-# 8. In a separate terminal, start the frontend
+cd frontend
+npm install
+npm run dev
+```
+
+Visit `http://localhost:5173`.
+
+## Pipeline commands
+
+| Command | What it does |
+|---|---|
+| `python -m pipeline.ingest --list-competitions` | List every available StatsBomb competition/season with IDs |
+| `python -m pipeline.ingest --competition-id X --season-id Y --limit N` | Ingest N matches from a specific competition/season |
+| `python -m pipeline.bulk_ingest [--dry-run] [--max-matches-per-season N]` | Ingest every available competition/season automatically. Skips matches already in the database, so it's safe to re-run anytime. |
+| `python -m pipeline.win_probability --train` | Retrain the win-probability model on everything currently ingested |
+| `python -m pipeline.win_probability --predict SCORE_DIFF MINUTE` | Sanity-check the model's calibration at a given score/time |
+| `python -m pipeline.rating_engine [--match-id ID] [--force] [--show]` | Compute player ratings for one match or everything unrated |
+| `python -m pipeline.backfill_stage` | Backfill tournament stage onto already-ingested matches |
+
+Since ingestion, training, and rating computation are separate steps, a
+typical workflow after adding more data is: re-run `bulk_ingest`, then
+`win_probability --train`, then `rating_engine` — each skips work that's
+already done, so it's cheap to run repeatedly as the dataset grows.
+
+## The rating methodology, briefly
+
 Full reasoning and design decisions (including a few dead ends worth
 learning from) are documented in [`docs/methodology.md`](docs/methodology.md).
 The short version:
@@ -120,7 +179,8 @@ The short version:
 
 ## Data source
 
-All match and event data comes from [StatsBomb's Open Data](https://github.com/statsbomb/open-data),
-used under their open data license. Not affiliated with or endorsed by
-StatsBomb.
+All match and event data comes from
+[StatsBomb's Open Data](https://github.com/statsbomb/open-data), used under
+their open data license. Not affiliated with or endorsed by StatsBomb.
+
 
